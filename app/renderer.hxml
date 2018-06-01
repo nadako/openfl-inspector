@@ -1,0 +1,5 @@
+-cp src
+-main Renderer
+-js renderer.js
+-lib hxbit
+-lib electron

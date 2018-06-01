@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project>
+	<app main="Main" path="Export" file="Sample" />
+	<window width="3000" height="1000" fps="30" resizable="false"/>
+	<source path="src" />
+	<haxelib name="openfl" />
+	<haxelib name="hxsocketio" />
+	<haxelib name="hxbit" />
+	<assets path="Assets" />
+	<template path="Assets/index.html" rename="index.html" />
+</project>

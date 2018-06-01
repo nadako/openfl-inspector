@@ -1,0 +1,13 @@
+{
+	"name": "openfl-inspector",
+	"version": "1.0.0",
+	"description": "OpenFL display tree inspector",
+	"main": "main.js",
+	"scripts": {
+		"start": "./node_modules/.bin/electron ."
+	},
+	"author": "nadako",
+	"dependencies": {
+		"socket.io": "^2.1.1"
+	}
+}
