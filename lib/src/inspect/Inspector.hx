@@ -52,8 +52,9 @@ class DisplayObjectNode {
 	public var object(default,null):DisplayObject;
 
 	var element:JQuery;
+	var onRemoved:DisplayObjectNode->Void;
 
-	public function new(object:DisplayObject, container:JQuery, onClick:DisplayObjectNode->Void) {
+	public function new(object:DisplayObject, container:JQuery, onClick:DisplayObjectNode->Void, onRemoved:DisplayObjectNode->Void) {
 		this.object = object;
 
 		object.addEventListener(Event.REMOVED, function(e:Event) {
@@ -70,18 +71,20 @@ class DisplayObjectNode {
 
 		span.click(function(_) onClick(this));
 
+		this.onRemoved = onRemoved;
+
 		var doContainer = Std.instance(object, DisplayObjectContainer);
 		if (doContainer != null) {
 			var ul = element.query("<ul>");
 			ul.appendTo(element);
 
 			for (i in 0...doContainer.numChildren) {
-				new DisplayObjectNode(doContainer.getChildAt(i), ul, onClick);
+				new DisplayObjectNode(doContainer.getChildAt(i), ul, onClick, onRemoved);
 			}
 
 			object.addEventListener(Event.ADDED, function(e:Event) {
 				if ((e.target : DisplayObject).parent == object) {
-					new DisplayObjectNode(e.target, ul, onClick);
+					new DisplayObjectNode(e.target, ul, onClick, onRemoved);
 				}
 			});
 		}
@@ -89,6 +92,7 @@ class DisplayObjectNode {
 
 	function remove() {
 		element.remove();
+		if (onRemoved != null) onRemoved(this);
 	}
 }
 
@@ -100,23 +104,37 @@ class Hierarchy {
 		var container = root.query("<ul>");
 		container.appendTo(root);
 
-		new DisplayObjectNode(stage, container, onObjectNodeClick);
+		new DisplayObjectNode(stage, container, onObjectNodeClick, onObjectNodeRemoved);
 	}
 
 	function onObjectNodeClick(node:DisplayObjectNode) {
 		properties.showProperties(node.object);
 	}
+
+	function onObjectNodeRemoved(node:DisplayObjectNode) {
+		if (properties.currentObject == node.object)
+			properties.clear();
+	}
 }
 
 class Properties {
+	public var currentObject(default,null):DisplayObject;
+
 	var container:JQuery;
 
 	public function new(container:JQuery) {
 		this.container = container;
 	}
 
-	public function showProperties(object:DisplayObject) {
+	public function clear() {
 		container.children().remove();
+		currentObject = null;
+	}
+
+	public function showProperties(object:DisplayObject) {
+		clear();
+
+		currentObject = object;
 
 		function addProperty(name, value) {
 			var p = container.query("<div>");
