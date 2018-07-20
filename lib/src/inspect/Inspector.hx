@@ -1,5 +1,6 @@
 package inspect;
 
+import openfl.events.Event;
 import openfl.display.Stage;
 import openfl.display.DisplayObject;
 import openfl.display.DisplayObjectContainer;
@@ -50,10 +51,12 @@ class Inspector extends vdom.Client {
 class DisplayObjectNode {
 	public var object(default,null):DisplayObject;
 
+	var element:JQuery;
+
 	public function new(object:DisplayObject, container:JQuery, onClick:DisplayObjectNode->Void) {
 		this.object = object;
 
-		var element = container.query("<li>");
+		element = container.query("<li>");
 		element.appendTo(container);
 
 		var span = container.query("<span>");
@@ -67,9 +70,19 @@ class DisplayObjectNode {
 			var ul = element.query("<ul>");
 			ul.appendTo(element);
 			for (i in 0...doContainer.numChildren) {
-				new DisplayObjectNode(doContainer.getChildAt(i), ul, onClick);
+				var child = doContainer.getChildAt(i);
+				var node = new DisplayObjectNode(child, ul, onClick);
+
+				child.addEventListener(Event.REMOVED, function(e:Event) {
+					if (e.target == child)
+						node.remove();
+				});
 			}
 		}
+	}
+
+	public function remove() {
+		element.remove();
 	}
 }
 

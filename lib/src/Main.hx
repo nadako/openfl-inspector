@@ -8,13 +8,16 @@ class Main extends Sprite {
 
 		var y = 0;
 		function addShape(name, color) {
-			var s = new openfl.display.Shape();
+			var s = new openfl.display.Sprite();
 			s.name = name;
 			s.graphics.beginFill(color, 1);
 			s.graphics.drawRect(0, 0, 50, 50);
 			s.graphics.endFill();
 			s.y = y;
 			y += 55;
+			s.addEventListener(openfl.events.MouseEvent.CLICK, function(_) {
+				removeChild(s);
+			});
 			addChild(s);
 		}
 
