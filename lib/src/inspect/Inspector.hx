@@ -56,6 +56,11 @@ class DisplayObjectNode {
 	public function new(object:DisplayObject, container:JQuery, onClick:DisplayObjectNode->Void) {
 		this.object = object;
 
+		object.addEventListener(Event.REMOVED, function(e:Event) {
+			if (e.target == object)
+				remove();
+		});
+
 		element = container.query("<li>");
 		element.appendTo(container);
 
@@ -69,19 +74,20 @@ class DisplayObjectNode {
 		if (doContainer != null) {
 			var ul = element.query("<ul>");
 			ul.appendTo(element);
-			for (i in 0...doContainer.numChildren) {
-				var child = doContainer.getChildAt(i);
-				var node = new DisplayObjectNode(child, ul, onClick);
 
-				child.addEventListener(Event.REMOVED, function(e:Event) {
-					if (e.target == child)
-						node.remove();
-				});
+			for (i in 0...doContainer.numChildren) {
+				new DisplayObjectNode(doContainer.getChildAt(i), ul, onClick);
 			}
+
+			object.addEventListener(Event.ADDED, function(e:Event) {
+				if ((e.target : DisplayObject).parent == object) {
+					new DisplayObjectNode(e.target, ul, onClick);
+				}
+			});
 		}
 	}
 
-	public function remove() {
+	function remove() {
 		element.remove();
 	}
 }

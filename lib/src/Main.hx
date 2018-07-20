@@ -1,4 +1,6 @@
 import openfl.display.Sprite;
+import openfl.events.MouseEvent;
+import openfl.events.KeyboardEvent;
 
 class Main extends Sprite {
 	public function new() {
@@ -15,7 +17,7 @@ class Main extends Sprite {
 			s.graphics.endFill();
 			s.y = y;
 			y += 55;
-			s.addEventListener(openfl.events.MouseEvent.CLICK, function(_) {
+			s.addEventListener(MouseEvent.CLICK, function(_) {
 				removeChild(s);
 			});
 			addChild(s);
@@ -24,6 +26,10 @@ class Main extends Sprite {
 		addShape("redbox", 0xFF0000);
 		addShape("greenbox", 0x00FF00);
 		addShape("bluebox", 0x0000FF);
+
+		stage.addEventListener(KeyboardEvent.KEY_DOWN, function(_) {
+			addShape("new box at " + y, Std.random(0xFFFFFF));
+		});
 
 		new inspect.Inspector(stage, "localhost", 8000);
 	}
