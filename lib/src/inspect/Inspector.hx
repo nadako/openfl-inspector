@@ -48,14 +48,58 @@ class Inspector extends vdom.Client {
 	}
 }
 
+class Expand {
+	var element:JQuery;
+	var expanded:Bool = false;
+	var onExpand:Bool->Void;
+
+	public function new(parent:JQuery, onExpand:Bool->Void, expanded:Bool) {
+		this.onExpand = onExpand;
+		element = parent.query("<span>");
+		element.style("padding", "0 6px");
+		element.style("cursor", "pointer");
+		element.appendTo(parent);
+		element.click(onClick);
+		hide();
+		if (expanded) expand() else collapse();
+	}
+
+	public function hide() {
+		element.style("display", "none");
+	}
+
+	public function show() {
+		element.style("display", "inline");
+	}
+
+	function expand() {
+		expanded = true;
+		element.text("-");
+		onExpand(true);
+	}
+
+	function collapse() {
+		expanded = false;
+		element.text("+");
+		onExpand(false);
+	}
+
+	function onClick(_) {
+		if (!expanded) expand() else collapse();
+	}
+}
+
 class DisplayObjectNode {
 	public var object(default,null):DisplayObject;
 
 	var element:JQuery;
+	var childrenUL:JQuery;
 	var onRemoved:DisplayObjectNode->Void;
+	var level:Int;
 
-	public function new(object:DisplayObject, container:JQuery, onClick:DisplayObjectNode->Void, onRemoved:DisplayObjectNode->Void) {
+	public function new(object:DisplayObject, level:Int, container:JQuery, onClick:DisplayObjectNode->Void, onRemoved:DisplayObjectNode->Void) {
 		this.object = object;
+		this.level = level;
 
 		object.addEventListener(Event.REMOVED, function(e:Event) {
 			if (e.target == object)
@@ -65,7 +109,11 @@ class DisplayObjectNode {
 		element = container.query("<li>");
 		element.appendTo(container);
 
+		var expandContainer = element.query("<span>");
+		expandContainer.appendTo(element);
+
 		var span = container.query("<span>");
+		span.style("cursor", "pointer");
 		span.appendTo(element);
 		span.text(if (object.name == null) Std.string(object) else object.name);
 
@@ -75,19 +123,32 @@ class DisplayObjectNode {
 
 		var doContainer = Std.instance(object, DisplayObjectContainer);
 		if (doContainer != null) {
-			var ul = element.query("<ul>");
+			var ul = childrenUL = element.query("<ul>");
+			ul.style("list-style", "none");
 			ul.appendTo(element);
 
-			for (i in 0...doContainer.numChildren) {
-				new DisplayObjectNode(doContainer.getChildAt(i), ul, onClick, onRemoved);
+			var expanded = level < 2;
+			var expand = new Expand(expandContainer, onExpand, expanded);
+
+			var numChildren = doContainer.numChildren;
+			if (numChildren > 0)
+				expand.show();
+
+			for (i in 0...numChildren) {
+				new DisplayObjectNode(doContainer.getChildAt(i), level + 1, ul, onClick, onRemoved);
 			}
 
 			object.addEventListener(Event.ADDED, function(e:Event) {
 				if ((e.target : DisplayObject).parent == object) {
-					new DisplayObjectNode(e.target, ul, onClick, onRemoved);
+					expand.show();
+					new DisplayObjectNode(e.target, level + 1, ul, onClick, onRemoved);
 				}
 			});
 		}
+	}
+
+	function onExpand(expand:Bool) {
+		childrenUL.style("display", if (expand) "block" else "none");
 	}
 
 	function remove() {
@@ -104,7 +165,7 @@ class Hierarchy {
 		var container = root.query("<ul>");
 		container.appendTo(root);
 
-		new DisplayObjectNode(stage, container, onObjectNodeClick, onObjectNodeRemoved);
+		new DisplayObjectNode(stage, 0, container, onObjectNodeClick, onObjectNodeRemoved);
 	}
 
 	function onObjectNodeClick(node:DisplayObjectNode) {
