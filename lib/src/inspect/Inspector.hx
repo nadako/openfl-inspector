@@ -1,15 +1,68 @@
 package inspect;
 
 import openfl.events.Event;
+import openfl.events.MouseEvent;
 import openfl.display.Bitmap;
 import openfl.display.BitmapData;
 import openfl.display.Stage;
 import openfl.display.Sprite;
 import openfl.display.DisplayObject;
 import openfl.display.DisplayObjectContainer;
+import openfl.geom.Point;
 import js.html.ArrayBuffer;
 import haxe.io.Bytes;
 import vdom.JQuery;
+
+class SelectTool {
+	var stage:Stage;
+	var inspector:Inspector;
+	var label:JQuery;
+	var isActive:Bool;
+
+	public function new(stage:Stage, inspector:Inspector, label:JQuery) {
+		this.stage = stage;
+		this.inspector = inspector;
+		this.label = label;
+		label.text("Select");
+		isActive = false;
+	}
+
+	public function activate() {
+		if (!isActive) {
+			isActive = true;
+			label.text("Selecting...");
+			label.attr("disabled", "true");
+			stage.addEventListener(MouseEvent.CLICK, onClick, true);
+			stage.addEventListener(MouseEvent.MOUSE_MOVE, onMove, true);
+		}
+	}
+
+	function getObjectUnderCursor() {
+		var objects = stage.getObjectsUnderPoint(new Point(stage.mouseX, stage.mouseY));
+		return objects[0];
+	}
+
+	function onMove(e:MouseEvent) {
+		e.preventDefault();
+		e.stopImmediatePropagation();
+		inspector.highlight(getObjectUnderCursor());
+	}
+
+	function onClick(e:MouseEvent) {
+		stage.removeEventListener(MouseEvent.CLICK, onClick, true);
+		stage.removeEventListener(MouseEvent.MOUSE_MOVE, onMove, true);
+		e.preventDefault();
+		e.stopImmediatePropagation();
+		isActive = false;
+		label.text("Select");
+		label.removeAttr("disabled");
+		inspector.highlight(null);
+		var selectedObject = getObjectUnderCursor();
+		if (selectedObject != null) {
+			inspector.select(selectedObject);
+		}
+	}
+}
 
 class Inspector extends vdom.Client {
 	static var current:Inspector;
@@ -18,6 +71,7 @@ class Inspector extends vdom.Client {
 	var client:IO.Socket;
 	var connected = false;
 	var highlightBitmap:Bitmap;
+	var hierarchy:Hierarchy;
 	var stage:Stage;
 
 	public function new(stage:Stage, host:String, port:Int) {
@@ -48,12 +102,17 @@ class Inspector extends vdom.Client {
 		hierarchyDiv.attr("id", "hierarchy");
 		hierarchyDiv.appendTo(jroot);
 
+		var selectObjectButton = jroot.query("<button>").appendTo(hierarchyDiv);
+
 		var propertiesDiv = jroot.query("<div>");
 		propertiesDiv.attr("id", "properties");
 		propertiesDiv.appendTo(jroot);
 
 		var properties = new Properties(propertiesDiv);
-		new Hierarchy(stage, this, hierarchyDiv, properties);
+		hierarchy = new Hierarchy(stage, this, hierarchyDiv, properties);
+
+		var selectTool = new SelectTool(stage, this, selectObjectButton);
+		selectObjectButton.click(function(_) selectTool.activate());
 
 		client = IO.io('http://$host:$port');
 		client.on("connect", function(_) {
@@ -68,6 +127,10 @@ class Inspector extends vdom.Client {
 	override function sendBytes(bytes:haxe.io.Bytes) {
 		if (!connected) return;
 		client.emit("message", bytes.getData());
+	}
+
+	public function select(object:DisplayObject) {
+		hierarchy.selectObject(object);
 	}
 
 	public function highlight(object:DisplayObject) {
@@ -135,9 +198,11 @@ class DisplayObjectNode {
 	var level:Int;
 	var objectNameElement:JQuery;
 
-	public function new(object:DisplayObject, level:Int, container:JQuery, onClick:DisplayObjectNode->Void, onRemoved:DisplayObjectNode->Void, onOver:DisplayObjectNode->Void, onOut:DisplayObjectNode->Void) {
+	public function new(object:DisplayObject, level:Int, container:JQuery, onAdded:DisplayObjectNode->Void, onClick:DisplayObjectNode->Void, onRemoved:DisplayObjectNode->Void, onOver:DisplayObjectNode->Void, onOut:DisplayObjectNode->Void) {
 		this.object = object;
 		this.level = level;
+
+		onAdded(this);
 
 		object.addEventListener(Event.REMOVED, function(e:Event) {
 			if (e.target == object)
@@ -175,13 +240,13 @@ class DisplayObjectNode {
 				expand.show();
 
 			for (i in 0...numChildren) {
-				new DisplayObjectNode(doContainer.getChildAt(i), level + 1, ul, onClick, onRemoved, onOver, onOut);
+				new DisplayObjectNode(doContainer.getChildAt(i), level + 1, ul, onAdded, onClick, onRemoved, onOver, onOut);
 			}
 
 			object.addEventListener(Event.ADDED, function(e:Event) {
 				if ((e.target : DisplayObject).parent == object) {
 					expand.show();
-					new DisplayObjectNode(e.target, level + 1, ul, onClick, onRemoved, onOver, onOut);
+					new DisplayObjectNode(e.target, level + 1, ul, onAdded, onClick, onRemoved, onOver, onOut);
 				}
 			});
 		}
@@ -209,6 +274,7 @@ class Hierarchy {
 	var inspector:Inspector;
 
 	var currectSelection:DisplayObjectNode;
+	var nodes:Array<DisplayObjectNode>;
 
 	public function new(stage:Stage, inspector:Inspector, root:JQuery, properties:Properties) {
 		this.inspector = inspector;
@@ -217,7 +283,8 @@ class Hierarchy {
 		var container = root.query("<ul>");
 		container.appendTo(root);
 
-		new DisplayObjectNode(stage, 0, container, onObjectNodeClick, onObjectNodeRemoved, onObjectNodeMouseOver, onObjectNodeMouseOut);
+		nodes = [];
+		new DisplayObjectNode(stage, 0, container, nodes.push, onObjectNodeClick, onObjectNodeRemoved, onObjectNodeMouseOver, onObjectNodeMouseOut);
 	}
 
 	function onObjectNodeMouseOver(node:DisplayObjectNode) {
@@ -228,6 +295,12 @@ class Hierarchy {
 		inspector.highlight(null);
 	}
 
+	public function selectObject(object:DisplayObject) {
+		var node = Lambda.find(nodes, function(node) return node.object == object);
+		if (node == null) return;
+		onObjectNodeClick(node);
+	}
+
 	function onObjectNodeClick(node:DisplayObjectNode) {
 		if (currectSelection != null) currectSelection.setSelected(false);
 		currectSelection = node;
@@ -236,6 +309,7 @@ class Hierarchy {
 	}
 
 	function onObjectNodeRemoved(node:DisplayObjectNode) {
+		nodes.remove(node);
 		if (currectSelection == node) {
 			properties.clear();
 			currectSelection = null;
