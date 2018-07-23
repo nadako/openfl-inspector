@@ -17,6 +17,7 @@ class Main extends Sprite {
 			s.graphics.endFill();
 			s.y = y;
 			y += 55;
+			s.cacheAsBitmap = true;
 			s.addEventListener(MouseEvent.CLICK, function(_) {
 				removeChild(s);
 			});

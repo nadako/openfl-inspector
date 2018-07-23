@@ -1,7 +1,10 @@
 package inspect;
 
 import openfl.events.Event;
+import openfl.display.Bitmap;
+import openfl.display.BitmapData;
 import openfl.display.Stage;
+import openfl.display.Sprite;
 import openfl.display.DisplayObject;
 import openfl.display.DisplayObjectContainer;
 import js.html.ArrayBuffer;
@@ -14,9 +17,28 @@ class Inspector extends vdom.Client {
 	var jroot:JQuery;
 	var client:IO.Socket;
 	var connected = false;
+	var highlightBitmap:Bitmap;
+	var stage:Stage;
 
 	public function new(stage:Stage, host:String, port:Int) {
 		super();
+		this.stage = stage;
+
+		var overlay = new Sprite();
+		overlay.name = "Inspector overlay";
+
+		highlightBitmap = new Bitmap(new BitmapData(1, 1, false, 0x0000FF));
+		highlightBitmap.name = "Object highlight";
+		highlightBitmap.alpha = 0.3;
+		highlightBitmap.visible = false;
+		overlay.addChild(highlightBitmap);
+
+		stage.addChild(overlay);
+		stage.addEventListener(Event.ADDED, function(e:Event) {
+			if ((e.target : DisplayObject).parent == stage) {
+				stage.setChildIndex(overlay, stage.numChildren);
+			}
+		});
 
 		current = this;
 
@@ -31,7 +53,7 @@ class Inspector extends vdom.Client {
 		propertiesDiv.appendTo(jroot);
 
 		var properties = new Properties(propertiesDiv);
-		new Hierarchy(stage, hierarchyDiv, properties);
+		new Hierarchy(stage, this, hierarchyDiv, properties);
 
 		client = IO.io('http://$host:$port');
 		client.on("connect", function(_) {
@@ -46,6 +68,19 @@ class Inspector extends vdom.Client {
 	override function sendBytes(bytes:haxe.io.Bytes) {
 		if (!connected) return;
 		client.emit("message", bytes.getData());
+	}
+
+	public function highlight(object:DisplayObject) {
+		if (object == null) {
+			highlightBitmap.visible = false;
+		} else {
+			highlightBitmap.visible = true;
+			var bounds = object.getBounds(stage);
+			highlightBitmap.x = bounds.x;
+			highlightBitmap.y = bounds.y;
+			highlightBitmap.width = bounds.width;
+			highlightBitmap.height = bounds.height;
+		}
 	}
 }
 
@@ -99,7 +134,7 @@ class DisplayObjectNode {
 	var onRemoved:DisplayObjectNode->Void;
 	var level:Int;
 
-	public function new(object:DisplayObject, level:Int, container:JQuery, onClick:DisplayObjectNode->Void, onRemoved:DisplayObjectNode->Void) {
+	public function new(object:DisplayObject, level:Int, container:JQuery, onClick:DisplayObjectNode->Void, onRemoved:DisplayObjectNode->Void, onOver:DisplayObjectNode->Void, onOut:DisplayObjectNode->Void) {
 		this.object = object;
 		this.level = level;
 
@@ -119,6 +154,8 @@ class DisplayObjectNode {
 		span.addClass("object-name");
 		span.appendTo(element);
 		span.text(if (object.name == null) Std.string(object) else object.name);
+		span.bind("mouseover", function(_) onOver(this));
+		span.bind("mouseout", function(_) onOut(this));
 
 		span.click(function(_) onClick(this));
 
@@ -137,13 +174,13 @@ class DisplayObjectNode {
 				expand.show();
 
 			for (i in 0...numChildren) {
-				new DisplayObjectNode(doContainer.getChildAt(i), level + 1, ul, onClick, onRemoved);
+				new DisplayObjectNode(doContainer.getChildAt(i), level + 1, ul, onClick, onRemoved, onOver, onOut);
 			}
 
 			object.addEventListener(Event.ADDED, function(e:Event) {
 				if ((e.target : DisplayObject).parent == object) {
 					expand.show();
-					new DisplayObjectNode(e.target, level + 1, ul, onClick, onRemoved);
+					new DisplayObjectNode(e.target, level + 1, ul, onClick, onRemoved, onOver, onOut);
 				}
 			});
 		}
@@ -161,13 +198,24 @@ class DisplayObjectNode {
 
 class Hierarchy {
 	var properties:Properties;
-	public function new(stage:Stage, root:JQuery, properties:Properties) {
+	var inspector:Inspector;
+
+	public function new(stage:Stage, inspector:Inspector, root:JQuery, properties:Properties) {
+		this.inspector = inspector;
 		this.properties = properties;
 
 		var container = root.query("<ul>");
 		container.appendTo(root);
 
-		new DisplayObjectNode(stage, 0, container, onObjectNodeClick, onObjectNodeRemoved);
+		new DisplayObjectNode(stage, 0, container, onObjectNodeClick, onObjectNodeRemoved, onObjectNodeMouseOver, onObjectNodeMouseOut);
+	}
+
+	function onObjectNodeMouseOver(node:DisplayObjectNode) {
+		inspector.highlight(node.object);
+	}
+
+	function onObjectNodeMouseOut(node:DisplayObjectNode) {
+		inspector.highlight(null);
 	}
 
 	function onObjectNodeClick(node:DisplayObjectNode) {
@@ -177,6 +225,50 @@ class Hierarchy {
 	function onObjectNodeRemoved(node:DisplayObjectNode) {
 		if (properties.currentObject == node.object)
 			properties.clear();
+	}
+}
+
+class Widget<T> {
+	public var element(default,null):JQuery;
+
+	public function new(factory:JQuery, value:T) {
+		element = init(factory, value);
+	}
+
+	function init(factory:JQuery, value:T):JQuery throw "abstract";
+}
+
+class EditWidget<T> extends Widget<T> {
+	var onChange:T->Void;
+
+	public function new(factory, value, onChange) {
+		super(factory, value);
+		this.onChange = onChange;
+	}
+}
+
+class Label extends Widget<String> {
+
+	override function init(factory:JQuery, value:String) {
+		var span = factory.query("<span>");
+		span.text(value);
+		return span;
+	}
+}
+
+class CheckBox extends EditWidget<Bool> {
+	var checked:Bool;
+
+	override function init(factory:JQuery, value:Bool) {
+		var input = factory.query("<input>");
+		input.attr("type", "checkbox");
+		checked = value;
+		if (value) input.attr("checked", "checked");
+		input.change(function(_) {
+			checked = !checked;
+			onChange(checked);
+		});
+		return input;
 	}
 }
 
@@ -200,27 +292,29 @@ class Properties {
 
 		currentObject = object;
 
-		function addProperty(name, value) {
-			var tr = table.query("<tr>");
-			tr.appendTo(table);
+		inline function label(s:Dynamic) return new Label(table, Std.string(s));
 
-			var th = tr.query("<th>");
-			th.appendTo(tr);
-			th.text(name);
+		addProperty("type", label(Type.getClassName(Type.getClass(object))));
+		addProperty("name", label(object.name));
+		addProperty("x", label(object.x));
+		addProperty("y", label(object.y));
+		addProperty("scaleX", label(object.scaleX));
+		addProperty("scaleY", label(object.scaleY));
+		addProperty("visible", label(object.visible));
+		addProperty("alpha", label(object.alpha));
+		addProperty("cacheAsBitmap", new CheckBox(table, object.cacheAsBitmap, function(cache) object.cacheAsBitmap = cache));
+	}
 
-			var td = tr.query("<td>");
-			td.appendTo(tr);
-			td.text(value);
-		}
+	function addProperty<T>(name, widget:Widget<T>) {
+		var tr = table.query("<tr>");
+		tr.appendTo(table);
 
-		addProperty("type", Type.getClassName(Type.getClass(object)));
-		addProperty("name", object.name);
-		addProperty("x", Std.string(object.x));
-		addProperty("y", Std.string(object.y));
-		addProperty("scaleX", Std.string(object.scaleX));
-		addProperty("scaleY", Std.string(object.scaleY));
-		addProperty("visible", Std.string(object.visible));
-		addProperty("alpha", Std.string(object.alpha));
-		addProperty("cacheAsBitmap", Std.string(object.cacheAsBitmap));
+		var th = tr.query("<th>");
+		th.appendTo(tr);
+		th.text(name);
+
+		var td = tr.query("<td>");
+		td.appendTo(tr);
+		widget.element.appendTo(td);
 	}
 }
