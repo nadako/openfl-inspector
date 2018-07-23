@@ -1,3 +1,4 @@
 {
-    "lime.executable": "haxelib run lime"
+	"lime.executable": "haxelib run lime",
+	"haxe.enableCompilationServer": false
 }

@@ -23,9 +23,11 @@ class Inspector extends vdom.Client {
 		jroot = J(getRoot());
 
 		var hierarchyDiv = jroot.query("<div>");
+		hierarchyDiv.attr("id", "hierarchy");
 		hierarchyDiv.appendTo(jroot);
 
 		var propertiesDiv = jroot.query("<div>");
+		propertiesDiv.attr("id", "properties");
 		propertiesDiv.appendTo(jroot);
 
 		var properties = new Properties(propertiesDiv);
@@ -55,8 +57,7 @@ class Expand {
 	public function new(parent:JQuery, onExpand:Bool->Void, expanded:Bool) {
 		this.onExpand = onExpand;
 		element = parent.query("<span>");
-		element.style("padding", "0 6px");
-		element.style("cursor", "pointer");
+		element.addClass("expand");
 		element.appendTo(parent);
 		element.click(onClick);
 		hide();
@@ -112,7 +113,7 @@ class DisplayObjectNode {
 		expandContainer.appendTo(element);
 
 		var span = container.query("<span>");
-		span.style("cursor", "pointer");
+		span.addClass("object-name");
 		span.appendTo(element);
 		span.text(if (object.name == null) Std.string(object) else object.name);
 
@@ -123,7 +124,6 @@ class DisplayObjectNode {
 		var doContainer = Std.instance(object, DisplayObjectContainer);
 		if (doContainer != null) {
 			var ul = childrenUL = element.query("<ul>");
-			ul.style("list-style", "none");
 			ul.appendTo(element);
 
 			var expanded = level < 2;
