@@ -56,8 +56,9 @@ class Expand {
 
 	public function new(parent:JQuery, onExpand:Bool->Void, expanded:Bool) {
 		this.onExpand = onExpand;
-		element = parent.query("<span>");
+		element = parent.query("<i>");
 		element.addClass("expand");
+		element.addClass("fas");
 		element.appendTo(parent);
 		element.click(onClick);
 		hide();
@@ -74,13 +75,15 @@ class Expand {
 
 	function expand() {
 		expanded = true;
-		element.text("-");
+		element.removeClass("fa-angle-right");
+		element.addClass("fa-angle-down");
 		onExpand(true);
 	}
 
 	function collapse() {
 		expanded = false;
-		element.text("+");
+		element.removeClass("fa-angle-down");
+		element.addClass("fa-angle-right");
 		onExpand(false);
 	}
 
@@ -180,14 +183,15 @@ class Hierarchy {
 class Properties {
 	public var currentObject(default,null):DisplayObject;
 
-	var container:JQuery;
+	var table:JQuery;
 
-	public function new(container:JQuery) {
-		this.container = container;
+	public function new(parent:JQuery) {
+		table = parent.query("<table>");
+		table.appendTo(parent);
 	}
 
 	public function clear() {
-		container.children().remove();
+		table.children().remove();
 		currentObject = null;
 	}
 
@@ -197,9 +201,16 @@ class Properties {
 		currentObject = object;
 
 		function addProperty(name, value) {
-			var p = container.query("<div>");
-			p.appendTo(container);
-			p.text('$name: $value');
+			var tr = table.query("<tr>");
+			tr.appendTo(table);
+
+			var th = tr.query("<th>");
+			th.appendTo(tr);
+			th.text(name);
+
+			var td = tr.query("<td>");
+			td.appendTo(tr);
+			td.text(value);
 		}
 
 		addProperty("type", Type.getClassName(Type.getClass(object)));
