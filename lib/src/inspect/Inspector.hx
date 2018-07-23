@@ -330,6 +330,12 @@ class Properties {
 		addProperty("visible", new CheckBox(table, object.visible, function(visible) object.visible = visible));
 		addProperty("alpha", new NumberEdit(table, object.alpha, function(alpha) object.alpha = alpha, 0.1));
 		addProperty("cacheAsBitmap", new CheckBox(table, object.cacheAsBitmap, function(cache) object.cacheAsBitmap = cache));
+
+		switch Std.instance(object, openfl.text.TextField) {
+			case null:
+			case tf:
+				addProperty("text", new TextEdit(table, tf.text, function(v) tf.text = v));
+		}
 	}
 
 	function addProperty<T>(name, widget:Widget<T>) {
