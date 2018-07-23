@@ -1,0 +1,14 @@
+{
+    "name": "openfl-inspector",
+    "description": "Display tree inspector for OpenFL",
+    "contributors": ["nadako"],
+    "license": "MIT",
+    "version": "0.0.1",
+    "releasenote": "Not released yet :]",
+    "url": "https://github.com/nadako/openfl-inspector",
+    "classPath": "src",
+    "dependencies": {
+        "hxbit": "1.4.1",
+        "openfl": ""
+    }
+}
