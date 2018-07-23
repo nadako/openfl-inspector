@@ -57,7 +57,6 @@ class Expand {
 	public function new(parent:JQuery, onExpand:Bool->Void, expanded:Bool) {
 		this.onExpand = onExpand;
 		element = parent.query("<i>");
-		element.addClass("expand");
 		element.addClass("fas");
 		element.appendTo(parent);
 		element.click(onClick);
@@ -66,11 +65,11 @@ class Expand {
 	}
 
 	public function hide() {
-		element.style("display", "none");
+		element.addClass("hidden");
 	}
 
 	public function show() {
-		element.style("display", "inline");
+		element.removeClass("hidden");
 	}
 
 	function expand() {
@@ -113,6 +112,7 @@ class DisplayObjectNode {
 		element.appendTo(container);
 
 		var expandContainer = element.query("<span>");
+		expandContainer.addClass("expand");
 		expandContainer.appendTo(element);
 
 		var span = container.query("<span>");
@@ -217,5 +217,10 @@ class Properties {
 		addProperty("name", object.name);
 		addProperty("x", Std.string(object.x));
 		addProperty("y", Std.string(object.y));
+		addProperty("scaleX", Std.string(object.scaleX));
+		addProperty("scaleY", Std.string(object.scaleY));
+		addProperty("visible", Std.string(object.visible));
+		addProperty("alpha", Std.string(object.alpha));
+		addProperty("cacheAsBitmap", Std.string(object.cacheAsBitmap));
 	}
 }
