@@ -133,6 +133,7 @@ class DisplayObjectNode {
 	var childrenUL:JQuery;
 	var onRemoved:DisplayObjectNode->Void;
 	var level:Int;
+	var objectNameElement:JQuery;
 
 	public function new(object:DisplayObject, level:Int, container:JQuery, onClick:DisplayObjectNode->Void, onRemoved:DisplayObjectNode->Void, onOver:DisplayObjectNode->Void, onOut:DisplayObjectNode->Void) {
 		this.object = object;
@@ -150,7 +151,7 @@ class DisplayObjectNode {
 		expandContainer.addClass("expand");
 		expandContainer.appendTo(element);
 
-		var span = container.query("<span>");
+		var span = objectNameElement = container.query("<span>");
 		span.addClass("object-name");
 		span.appendTo(element);
 		span.text(if (object.name == null) Std.string(object) else object.name);
@@ -186,6 +187,13 @@ class DisplayObjectNode {
 		}
 	}
 
+	public function setSelected(selected:Bool) {
+		if (selected)
+			objectNameElement.addClass("selected")
+		else
+			objectNameElement.removeClass("selected");
+	}
+
 	function onExpand(expand:Bool) {
 		childrenUL.style("display", if (expand) "block" else "none");
 	}
@@ -199,6 +207,8 @@ class DisplayObjectNode {
 class Hierarchy {
 	var properties:Properties;
 	var inspector:Inspector;
+
+	var currectSelection:DisplayObjectNode;
 
 	public function new(stage:Stage, inspector:Inspector, root:JQuery, properties:Properties) {
 		this.inspector = inspector;
@@ -219,6 +229,9 @@ class Hierarchy {
 	}
 
 	function onObjectNodeClick(node:DisplayObjectNode) {
+		if (currectSelection != null) currectSelection.setSelected(false);
+		currectSelection = node;
+		node.setSelected(true);
 		properties.showProperties(node.object);
 	}
 
