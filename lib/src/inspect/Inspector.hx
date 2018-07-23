@@ -236,8 +236,10 @@ class Hierarchy {
 	}
 
 	function onObjectNodeRemoved(node:DisplayObjectNode) {
-		if (properties.currentObject == node.object)
+		if (currectSelection == node) {
 			properties.clear();
+			currectSelection = null;
+		}
 	}
 }
 
@@ -315,8 +317,6 @@ class NumberEdit extends EditWidget<Float> {
 }
 
 class Properties {
-	public var currentObject(default,null):DisplayObject;
-
 	var table:JQuery;
 
 	public function new(parent:JQuery) {
@@ -326,13 +326,10 @@ class Properties {
 
 	public function clear() {
 		table.children().remove();
-		currentObject = null;
 	}
 
 	public function showProperties(object:DisplayObject) {
 		clear();
-
-		currentObject = object;
 
 		addProperty("type", new Label(table, Type.getClassName(Type.getClass(object))));
 		addProperty("name", new TextEdit(table, object.name, function(v) object.name = v)); // TODO: update the name in hierarchy
