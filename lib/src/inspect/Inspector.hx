@@ -256,6 +256,18 @@ class Label extends Widget<String> {
 	}
 }
 
+class TextEdit extends EditWidget<String> {
+	override function init(factory:JQuery, value:String) {
+		var input = factory.query("<input>");
+		input.attr("type", "text");
+		input.val(value);
+		input.change(function(_) {
+			onChange(input.getValue());
+		});
+		return input;
+	}
+}
+
 class CheckBox extends EditWidget<Bool> {
 	var checked:Bool;
 
@@ -309,10 +321,8 @@ class Properties {
 
 		currentObject = object;
 
-		inline function label(s:Dynamic) return new Label(table, Std.string(s));
-
-		addProperty("type", label(Type.getClassName(Type.getClass(object))));
-		addProperty("name", label(object.name));
+		addProperty("type", new Label(table, Type.getClassName(Type.getClass(object))));
+		addProperty("name", new TextEdit(table, object.name, function(v) object.name = v)); // TODO: update the name in hierarchy
 		addProperty("x", new NumberEdit(table, object.x, function(v) object.x = v));
 		addProperty("y", new NumberEdit(table, object.y, function(v) object.y = v));
 		addProperty("scaleX", new NumberEdit(table, object.scaleX, function(v) object.scaleX = v));
