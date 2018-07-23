@@ -272,6 +272,23 @@ class CheckBox extends EditWidget<Bool> {
 	}
 }
 
+class NumberEdit extends EditWidget<Float> {
+	public function new(factory, value, onChange, step = 1.0) {
+		super(factory, value, onChange);
+		element.attr("step", Std.string(step));
+	}
+
+	override function init(factory:JQuery, value:Float) {
+		var input = factory.query("<input>");
+		input.attr("type", "number");
+		input.val(value);
+		input.change(function(_) {
+			onChange(Std.parseFloat(input.getValue()));
+		});
+		return input;
+	}
+}
+
 class Properties {
 	public var currentObject(default,null):DisplayObject;
 
@@ -296,12 +313,12 @@ class Properties {
 
 		addProperty("type", label(Type.getClassName(Type.getClass(object))));
 		addProperty("name", label(object.name));
-		addProperty("x", label(object.x));
-		addProperty("y", label(object.y));
-		addProperty("scaleX", label(object.scaleX));
-		addProperty("scaleY", label(object.scaleY));
-		addProperty("visible", label(object.visible));
-		addProperty("alpha", label(object.alpha));
+		addProperty("x", new NumberEdit(table, object.x, function(v) object.x = v));
+		addProperty("y", new NumberEdit(table, object.y, function(v) object.y = v));
+		addProperty("scaleX", new NumberEdit(table, object.scaleX, function(v) object.scaleX = v));
+		addProperty("scaleY", new NumberEdit(table, object.scaleY, function(v) object.scaleY = v));
+		addProperty("visible", new CheckBox(table, object.visible, function(visible) object.visible = visible));
+		addProperty("alpha", new NumberEdit(table, object.alpha, function(alpha) object.alpha = alpha, 0.1));
 		addProperty("cacheAsBitmap", new CheckBox(table, object.cacheAsBitmap, function(cache) object.cacheAsBitmap = cache));
 	}
 
