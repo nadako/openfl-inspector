@@ -6,14 +6,13 @@ import openfl.display.DisplayObject;
 import openfl.display.DisplayObjectContainer;
 import js.html.ArrayBuffer;
 import haxe.io.Bytes;
-import js.node.socketio.Client;
 import vdom.JQuery;
 
 class Inspector extends vdom.Client {
 	static var current:Inspector;
 
 	var jroot:JQuery;
-	var client:Client;
+	var client:IO.Socket;
 	var connected = false;
 
 	public function new(stage:Stage, host:String, port:Int) {
@@ -32,7 +31,7 @@ class Inspector extends vdom.Client {
 		var properties = new Properties(propertiesDiv);
 		new Hierarchy(stage, hierarchyDiv, properties);
 
-		client = new Client('http://$host:$port');
+		client = IO.io('http://$host:$port');
 		client.on("connect", function(_) {
 			connected = true;
 			syncDom();

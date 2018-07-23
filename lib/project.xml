@@ -2,10 +2,9 @@
 <project>
 	<app main="Main" path="Export" file="Sample" />
 	<window width="3000" height="1000" fps="30" resizable="false"/>
+	<source path="../socketio" />
 	<source path="src" />
+	<source path="test" />
 	<haxelib name="openfl" />
-	<haxelib name="hxsocketio" />
 	<haxelib name="hxbit" />
-	<assets path="Assets" />
-	<template path="Assets/index.html" rename="index.html" />
 </project>
